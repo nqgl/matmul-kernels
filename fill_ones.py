@@ -1,6 +1,5 @@
 from numba import cuda
 import torch
-from torch.autograd import Function
 from nqgl.sae.hsae.spbmbmm import baseline
 
 
@@ -149,7 +148,8 @@ def main():
     # # a = torch.eye(8, device='cuda')
     # # b = torch.eye(8, device='cuda')
     # c = matmul(a, b)
-    # print(c - a @ b)
+    # print(c - a @ b)        a = torch.rand(6503, 2007, device='cuda')
+
     # print(c)
     # print(torch.allclose(c, a @ b, atol=1e-5))
 
@@ -160,7 +160,6 @@ def main():
     c = matmul(a, b)
     print(torch.allclose(c, a @ b, rtol=1e-4, atol=1e-4))
     while not torch.allclose(c, a @ b, rtol=1e-4, atol=1e-4):
-        a = torch.rand(6503, 2007, device='cuda')
         b = torch.randn(2007, 6699, device='cuda')
         c = matmul(a, b)
         i += 1
