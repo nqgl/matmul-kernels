@@ -50,44 +50,44 @@ def testmats(n, m, k, skipfreq=2):
         torch.randn(n, m, device="cuda"),
         torch.rand(m, k, device="cuda")
     )
-    for skip0 in [0, 1]:
-        for skip1 in [0, 1]:
-            d[f"ones_skip{skip0}{skip1}even"] = (
-                torch.ones(n, m, device="cuda"),
-                torch.ones(m, k, device="cuda")
-            )
-            d[f"ones_skip{skip0}{skip1}odd"] = (
-                torch.ones(n, m, device="cuda"),
-                torch.ones(m, k, device="cuda")
-            )
-            mats_even = d[f"ones_skip{skip0}{skip1}even"]
-            mats_odd = d[f"ones_skip{skip0}{skip1}odd"]
+    # for skip0 in [0, 1]:
+    #     for skip1 in [0, 1]:
+    #         d[f"ones_skip{skip0}{skip1}even"] = (
+    #             torch.ones(n, m, device="cuda"),
+    #             torch.ones(m, k, device="cuda")
+    #         )
+    #         d[f"ones_skip{skip0}{skip1}odd"] = (
+    #             torch.ones(n, m, device="cuda"),
+    #             torch.ones(m, k, device="cuda")
+    #         )
+    #         mats_even = d[f"ones_skip{skip0}{skip1}even"]
+    #         mats_odd = d[f"ones_skip{skip0}{skip1}odd"]
             
-            for i in range(n):
-                for j in range(m):
-                    if skip0 == 0:
-                        if j % skipfreq == 0:
-                            mats_even[0][:, j] = 0
-                        else:
-                            mats_odd[0][:, j] = 0
-                    else:
-                        if i % skipfreq == 0:
-                            mats_even[0][:, j] = 0
-                        else:
-                            mats_odd[0][:, j] = 0
+    #         for i in range(n):
+    #             for j in range(m):
+    #                 if skip0 == 0:
+    #                     if j % skipfreq == 0:
+    #                         mats_even[0][:, j] = 0
+    #                     else:
+    #                         mats_odd[0][:, j] = 0
+    #                 else:
+    #                     if i % skipfreq == 0:
+    #                         mats_even[0][:, j] = 0
+    #                     else:
+    #                         mats_odd[0][:, j] = 0
                     
-            for i in range(m):
-                for j in range(k):
-                    if skip1 == 0:
-                        if j % skipfreq == 0:
-                            mats_even[1][:, j] = 0
-                        else:
-                            mats_odd[1][:, j] = 0
-                    else:
-                        if i % skipfreq == 0:
-                            mats_even[1][:, j] = 0
-                        else:
-                            mats_odd[1][:, j] = 0
+    #         for i in range(m):
+    #             for j in range(k):
+    #                 if skip1 == 0:
+    #                     if j % skipfreq == 0:
+    #                         mats_even[1][:, j] = 0
+    #                     else:
+    #                         mats_odd[1][:, j] = 0
+    #                 else:
+    #                     if i % skipfreq == 0:
+    #                         mats_even[1][:, j] = 0
+    #                     else:
+    #                         mats_odd[1][:, j] = 0
     return d    
 
 def colprint(l, spacing = 4, linesep = False):
@@ -142,9 +142,90 @@ def colprint(l, spacing = 4, linesep = False):
             print("".join([ 
                 line[i].ljust(colwidths[i])
                                             
-                for i in range(len(line))]))  
+                for i in range(len(line))])) 
 
-def runtests(matmul, n, m, k, atol=1e-4, rtol=1e-4):
+
+
+def tzoom(t, coords, rad):
+    return t[coords[0] - rad: coords[0] + rad + 1, coords[1] - rad: coords[1] + rad + 1]
+
+def zoomer(t, coords, rad, step=1):
+    i = 0
+    while i != "q":
+        print(tzoom(t, coords, rad))
+        i = input()
+        if i == "w":
+            coords[0] -= step
+        elif i == "s":
+            coords[0] += step
+        elif i == "a":
+            coords[1] -= step
+        elif i == "d":
+            coords[1] += step
+        elif i == "e":
+            rad += 1
+        elif i == "r":
+            rad -= 1
+        elif i == "q":
+            break
+        else:
+            print("invalid input")
+
+
+def print_error_region(res, res2, radius, coords):
+    res = res.clone()
+    res2 = res2.clone()
+    region = (
+        (
+            max(coords[0] - radius, 0), 
+            max(coords[1] - radius, 0)
+        ), (
+            min(coords[0] + radius + 1, res.shape[0]), 
+            min(coords[1] + radius + 1, res.shape[1])
+        )
+    )
+    r = res[region[0][0]: region[1][0], region[0][1]: region[1][1]]
+    r2 = res2[region[0][0]: region[1][0], region[0][1]: region[1][1]]
+    print(f"looking inside a {res.shape} at {coords} with radius {radius}")
+    print(f"region is ({region[0][0]}:{region[1][0]}, {region[0][1]}:{region[1][1]})")
+    print(f"\nresult:\n", r)
+    print(f"\nactual:\n", r2)
+    print(f"\ndiff:\n", r - r2)
+
+
+def findwrong(res, res2, print_error_radius = 3, interact=False, atol=1e-2, rtol=1e-2):
+    success = torch.allclose(res, res2, atol=atol, rtol=rtol)
+    if not success:
+        absdiff = torch.abs(res - res2)
+        print(res.shape)
+        max_diff = torch.max(absdiff, dim=1)
+        maxx = torch.argmax(max_diff.values)
+        # max_diff_coords_x = max_diff.indices[]
+        maxy = max_diff.indices[torch.argmax(max_diff.values)]
+        max_diff_coords = (maxx.item(), maxy.item())
+
+        if print_error_radius:
+            print_error_region(res, res2, print_error_radius, max_diff_coords)
+        pass
+    return success
+
+
+def test(matmul, a, b, name=None, **kwargs):
+    print(name) if name is not None else None
+    res = matmul(a.clone(), b.clone())
+    res2 = a.clone() @ b.clone()
+    if res.dtype != res2.dtype:
+        print("dtype mismatch")
+        res2 = res2.to(res.dtype)
+    success = findwrong(res, res2, **kwargs)
+    line = [name, success]
+
+
+
+
+
+
+def runtests(matmul, n, m, k, atol=1e-2, rtol=1e-2, print_error_radius=0):
     d = testmats(n=n, k=k, m=m)
     l = []
     failed = []
@@ -158,11 +239,17 @@ def runtests(matmul, n, m, k, atol=1e-4, rtol=1e-4):
         if not success:
             failed += [[k, res]]
             absdiff = torch.abs(res - res2)
+            print(res.shape)
             max_diff = torch.max(absdiff, dim=1)
-            max_diff_coords_x = max_diff.indices[torch.argmax(max_diff.values)]
-            max_diff_coords_y = torch.argmax(absdiff[max_diff_coords_x])
-            max_diff_coords = (max_diff_coords_x.item(), max_diff_coords_y.item())
+            maxx = torch.argmax(max_diff.values)
+            # max_diff_coords_x = max_diff.indices[]
+            maxy = max_diff.indices[torch.argmax(max_diff.values)]
+            max_diff_coords = (maxx.item(), maxy.item())
             line += [max_diff_coords, torch.max(absdiff).item()]
+
+            if print_error_radius:
+                print_error_region(res, res2, print_error_radius, max_diff_coords)
+            pass
         l += [line]
         print("done")
     if failed:

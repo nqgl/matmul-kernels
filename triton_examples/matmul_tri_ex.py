@@ -141,8 +141,8 @@ def matmul(a, b, activation=""):
 
 
 torch.manual_seed(0)
-a = torch.randn((512, 512), device='cuda', dtype=torch.float32)
-b = torch.randn((512, 512), device='cuda', dtype=torch.float32)
+a = torch.randn((8, 512), device='cuda', dtype=torch.float16)
+b = torch.randn((512, 1024), device='cuda', dtype=torch.float16)
 triton_output = matmul(a, b)
 torch_output = torch.matmul(a, b)
 print(f"triton_output={triton_output}")

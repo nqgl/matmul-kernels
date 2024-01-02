@@ -23,9 +23,9 @@ def colprint(l, spacing = 4):
 
 
 
-def timetest(n, m, k, matmul, name, iterations = 3, check=True, dtype = torch.float32):
-    al = [torch.rand(n, m, device='cuda', dtype=dtype) for _ in range(iterations)]
-    bl = [torch.randn(m, k, device='cuda', dtype=dtype) for _ in range(iterations)]
+def timetest(m, k, n, matmul, name, iterations = 3, check=True, dtype = torch.float32):
+    al = [torch.rand(m, k, device='cuda', dtype=dtype) for _ in range(iterations)]
+    bl = [torch.randn(k, n, device='cuda', dtype=dtype) for _ in range(iterations)]
 
     
     

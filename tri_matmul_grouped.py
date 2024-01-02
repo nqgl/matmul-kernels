@@ -178,9 +178,9 @@ def main():
     i = 0
 
 
-    k = 4096
-    m = 4096
-    n = 4096
+    k = 128
+    m = 512
+    n = 64
 
 
     test_mm_speeds.timetest(n, m, k, lambda *a, **k : matmul(*a, outtype=torch.float32, **k), "matmul fp32", dtype=torch.float32)

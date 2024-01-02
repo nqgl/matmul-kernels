@@ -20,14 +20,15 @@ def modulate(i, mod, n, a):
     configs=[
         # triton.Config({'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M' : 8}, num_stages=2,num_warps=4),
         # triton.Config({'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M' : 8}, num_stages=1,num_warps=4),
-        triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 64, 'GROUP_SIZE_M' : 2,  'GROUP_SIZE_N' : 4}, num_stages=4,num_warps=8),
-        triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 64, 'GROUP_SIZE_M' : 2,  'GROUP_SIZE_N' : 4}, num_stages=2,num_warps=8),
-        triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M' : 2,  'GROUP_SIZE_N' : 4}, num_stages=2,num_warps=8),
-        triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M' : 2,  'GROUP_SIZE_N' : 4}, num_stages=4,num_warps=8),
-        triton.Config({'BLOCK_SIZE_M': 32, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 256, 'GROUP_SIZE_M' : 2,  'GROUP_SIZE_N' : 4}, num_stages=4,num_warps=8),
-        triton.Config({'BLOCK_SIZE_M': 32, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 256, 'GROUP_SIZE_M' : 2,  'GROUP_SIZE_N' : 4}, num_stages=2,num_warps=8),
-        triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 32, 'BLOCK_SIZE_K': 256, 'GROUP_SIZE_M' : 8,  'GROUP_SIZE_N' : 4}, num_stages=2,num_warps=8),
-        triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 32, 'BLOCK_SIZE_K': 256, 'GROUP_SIZE_M' : 4,  'GROUP_SIZE_N' : 8}, num_stages=4,num_warps=8),
+        triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 64, 'GROUP_SIZE_M' : 2,  'GROUP_SIZE_N' : 2}, num_stages=4,num_warps=8),
+        # triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 64, 'GROUP_SIZE_M' : 2,  'GROUP_SIZE_N' : 2}, num_stages=2,num_warps=8),
+        # triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M' : 2,  'GROUP_SIZE_N' : 2}, num_stages=2,num_warps=8),
+        # triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M' : 2,  'GROUP_SIZE_N' : 2}, num_stages=4,num_warps=8),
+        # triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 32, 'BLOCK_SIZE_K': 256, 'GROUP_SIZE_M' : 2,  'GROUP_SIZE_N' : 2}, num_stages=2,num_warps=8),
+        # triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 32, 'BLOCK_SIZE_K': 256, 'GROUP_SIZE_M' : 2,  'GROUP_SIZE_N' : 2}, num_stages=4,num_warps=8),
+        # triton.Config({'BLOCK_SIZE_M': 32, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 256, 'GROUP_SIZE_M' : 2,  'GROUP_SIZE_N' : 2}, num_stages=4,num_warps=8),
+        # triton.Config({'BLOCK_SIZE_M': 32, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 256, 'GROUP_SIZE_M' : 2,  'GROUP_SIZE_N' : 2}, num_stages=2,num_warps=8),
+        
         # triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M' : 8}, num_stages=5,num_warps=4),
         # triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M' : 8}, num_stages=3,num_warps=4),
         
@@ -86,37 +87,65 @@ def matmul_basic_kernel(
     # offs_am = 
     n_Nblocks = tl.cdiv(N, BLOCK_SIZE_N)
     n_Kblocks = tl.cdiv(K, BLOCK_SIZE_K)
-    n_Mblocks = tl.cdiv(M, BLOCK_SIZE_M)
-
+    n_Mblocks = tl.cdiv(M, BLOCK_SIZE_M) #-
     pid = tl.program_id(axis=0)
     pid_per_group = GROUP_SIZE_M * GROUP_SIZE_N # so each group does 
                                                 # M // group_size_m of M
                                                 # and 1 of N ?
     group_id = pid // pid_per_group
-    nb_per_group = tl.cdiv(n_Nblocks, GROUP_SIZE_N)
-    mb_per_group = tl.cdiv(n_Mblocks, GROUP_SIZE_M)
-    group_n0 = group_id % nb_per_group * GROUP_SIZE_N
-    group_m0 = group_id // nb_per_group * GROUP_SIZE_M
-    
-    group_size_m = min(n_Mblocks - group_m0, GROUP_SIZE_M)
-    group_size_n = min(n_Nblocks - group_n0, GROUP_SIZE_N)
+    num_groups_N = tl.cdiv(n_Nblocks, GROUP_SIZE_N)
+    num_groups_M = tl.cdiv(n_Mblocks, GROUP_SIZE_M) #-
+    group_id_m = (group_id // num_groups_N)
+    group_id_n = group_id % num_groups_N
+    assert group_id_n < num_groups_N
+    assert group_id_m < num_groups_M #-
+    group_n0 = group_id_n * GROUP_SIZE_N
+    group_m0 = group_id_m * GROUP_SIZE_M #-
+    group_size_m = min(M - group_m0, GROUP_SIZE_M)
+    group_size_n = min(N - group_n0, GROUP_SIZE_N) #-
+    group_pid = pid % pid_per_group
 
-    id_mb = group_m0 + pid % group_size_m
-    id_nb = group_n0 + (pid // group_size_m) % group_size_n
-    assert id_mb < n_Mblocks
-    n0 = id_nb * BLOCK_SIZE_N 
-    m0 = id_mb * BLOCK_SIZE_M
-    offs_n = (tl.arange(0, BLOCK_SIZE_N) + n0) % N
-    offs_m = (tl.arange(0, BLOCK_SIZE_M) + m0) % M
-    acc = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=DTYPE_ACC)
+    id_mb = group_m0 + group_pid % group_size_m
+    id_nb = group_n0 + (group_pid // group_size_m) % group_size_n
+
+
     
+    # tl.device_print(
+    #     "\tpid:", pid, tl.num_programs(axis=0))
+    # tl.device_print("pid_per_group:", pid_per_group)
+    # tl.device_print("n_Nblocks:", n_Nblocks)
+    # tl.device_print("n_Kblocks:", n_Kblocks)
+    # tl.device_print("n_Mblocks:", n_Mblocks)
+    # tl.device_print("group_id:", group_id)
+    # tl.device_print("num_groups_N:", num_groups_N)
+    # tl.device_print("num_groups_M:", num_groups_M)
+    # tl.device_print("group_id_m:", group_id_m)
+    # tl.device_print("group_id_n:", group_id_n)
+    # tl.device_print("group_n0:", group_n0)
+    # tl.device_print("group_m0:", group_m0)
+    # tl.device_print("group_size_m:", group_size_m)
+    # tl.device_print("group_size_n:", group_size_n)
+    # tl.device_print("group_pid:", group_pid)
+    # tl.device_print("id_mb:", id_mb)
+    # tl.device_print("id_nb:", id_nb)
+    
+
+    # id_mb = group_m0 + group_pid % GROUP_SIZE_M
+    # id_nb = group_n0 + (group_pid // GROUP_SIZE_M) % GROUP_SIZE_N
+
+    assert id_mb < n_Mblocks
+    m0 = id_mb * BLOCK_SIZE_M
+    n0 = id_nb * BLOCK_SIZE_N 
+    offs_m = tl.arange(0, BLOCK_SIZE_M) + m0
+    offs_n = tl.arange(0, BLOCK_SIZE_N) + n0
+    acc = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=DTYPE_ACC)
     offs_k = tl.arange(0, BLOCK_SIZE_K)
     for ki in range(n_Kblocks):
         a_ptrs = a_ptr + offs_m[:, None] * stride_am + offs_k[None, :] * stride_ak
         b_ptrs = bt_ptr + offs_n[:, None] * stride_bn + offs_k[None, :] * stride_bk
 
-        ai = tl.load(a_ptrs, mask=(offs_m[:, None] < M) & (offs_k[None, :] < K), other=0.0)
-        bi = tl.load(b_ptrs, mask=(offs_n[:, None] < N) & (offs_k[None, :] < K), other=0.0)
+        ai = tl.load(a_ptrs, mask=(offs_m[:, None] < M) * (offs_k[None, :] < K), other=0.0)
+        bi = tl.load(b_ptrs, mask=(offs_n[:, None] < N) * (offs_k[None, :] < K), other=0.0)
         # bi = tl.trans(bi)
         if TRANS:
             bi = tl.trans(bi)
@@ -130,9 +159,9 @@ def matmul_basic_kernel(
     out_ptrs = out_ptr + offs_m[:, None] * stride_outm + offs_n[None, :] * stride_outn
 
     if DTYPE_RET is not None:
-        tl.store(out_ptrs, acc.to(DTYPE_RET), mask=(offs_m[:, None] < M) & (offs_n[None, :] < N))
+        tl.store(out_ptrs, acc.to(DTYPE_RET), mask=(offs_m[:, None] < M) * (offs_n[None, :] < N))
     else:
-        tl.store(out_ptrs, acc, mask=(offs_m[:, None] < M) & (offs_n[None, :] < N))
+        tl.store(out_ptrs, acc, mask=(offs_m[:, None] < M) * (offs_n[None, :] < N))
 
 
 
@@ -149,19 +178,20 @@ def matmul(a, b, outtype=torch.float32, DTYPE_AB = torch.float16):
         a = a.to(DTYPE_AB)
         b = b.to(DTYPE_AB)
     grid = lambda META: (
-          triton.cdiv(M, META['BLOCK_SIZE_M']) 
-        * triton.cdiv(N, META['BLOCK_SIZE_N']), 
+          triton.cdiv(M, META['GROUP_SIZE_M'] * META['BLOCK_SIZE_M']) * META['GROUP_SIZE_M'] * 
+          triton.cdiv(N, META['GROUP_SIZE_N'] * META['BLOCK_SIZE_N']) * META['GROUP_SIZE_N'], 
     )
     bt = b.transpose(0, 1)
     tltype = lambda T: tl.float16 if T == torch.float16 else tl.float32
 
     matmul_basic_kernel[grid](
-        output, a, bt,
-        M, N, K,
-        a.stride(0), a.stride(1),
-        b.stride(0),
-        b.stride(1),
-        output.stride(0), output.stride(1),
+        out_ptr = output,
+        a_ptr = a,
+        bt_ptr = bt,
+        M=M, N=N, K=K,
+        stride_am = a.stride(0), stride_ak = a.stride(1),
+        stride_bk = b.stride(0), stride_bn = b.stride(1),
+        stride_outm = output.stride(0), stride_outn = output.stride(1),
         # BLOCK_SIZE_M=128, 
         # BLOCK_SIZE_N=64,
         # BLOCK_SIZE_K=128
@@ -180,17 +210,32 @@ def main():
     i = 0
 
 
-    k = 4096
-    m = 4096
-    n = 4096
+    m = 64 * 2 * 4
+    k = 2* 1024
+    n = 256
 
+    test_mm_speeds.timetest(m, k, n, lambda *a, **k : matmul(*a, outtype=torch.float32, **k), "matmul fp32", dtype=torch.float32)
+    # print()
+    test_mm_speeds.timetest(m, k, n, matmul, "matmul fp16", dtype=torch.float16)
 
-    test_mm_speeds.timetest(n, m, k, lambda *a, **k : matmul(*a, outtype=torch.float32, **k), "matmul fp32", dtype=torch.float32)
+    # input()
+    m = 1 * 64
+    k = 1 * 512
+    n = 1 * 128
+
     print()
-    test_mm_speeds.timetest(n, m, k, matmul, "matmul fp16", dtype=torch.float16)
-    exit()
+    test_mm_speeds.timetest(m, k, n, lambda *a, **k : matmul(*a, outtype=torch.float32, **k), "matmul fp32", dtype=torch.float32)
+    test_mm_speeds.timetest(m, k, n, matmul, "matmul fp16", dtype=torch.float16)
+ 
+    onesa = torch.ones((m, k), device='cuda', dtype=torch.float16)
+    onesb = torch.ones((k, n), device='cuda', dtype=torch.float16)
+    test_matmul.test(matmul, onesa, onesb, print_error_radius=3)
 
-    test_matmul.runtests(matmul, n, m, k)
+
+
+    exit()
+    test_matmul.runtests(matmul, m, k, n, print_error_radius=3)
+
     # input()
     a = torch.rand(n, m, device='cuda', dtype=torch.float16)
     b = torch.randn(m, k, device='cuda', dtype=torch.float16)
