@@ -218,8 +218,8 @@ def test(matmul, a, b, name=None, **kwargs):
         print("dtype mismatch")
         res2 = res2.to(res.dtype)
     success = findwrong(res, res2, **kwargs)
-    line = [name, success]
-
+    # line = [name, success]
+    return success
 
 
 

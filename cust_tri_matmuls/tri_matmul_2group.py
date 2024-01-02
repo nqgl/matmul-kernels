@@ -20,7 +20,7 @@ def modulate(i, mod, n, a):
     configs=[
         # triton.Config({'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M' : 8}, num_stages=2,num_warps=4),
         # triton.Config({'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M' : 8}, num_stages=1,num_warps=4),
-        triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 64, 'GROUP_SIZE_M' : 2,  'GROUP_SIZE_N' : 2}, num_stages=4,num_warps=8),
+        triton.Config({'BLOCK_SIZE_M': 32, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 64, 'GROUP_SIZE_M' : 8,  'GROUP_SIZE_N' : 4}, num_stages=4,num_warps=8),
         # triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 64, 'GROUP_SIZE_M' : 2,  'GROUP_SIZE_N' : 2}, num_stages=2,num_warps=8),
         # triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M' : 2,  'GROUP_SIZE_N' : 2}, num_stages=2,num_warps=8),
         # triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M' : 2,  'GROUP_SIZE_N' : 2}, num_stages=4,num_warps=8),
@@ -89,21 +89,105 @@ def matmul_basic_kernel(
     n_Kblocks = tl.cdiv(K, BLOCK_SIZE_K)
     n_Mblocks = tl.cdiv(M, BLOCK_SIZE_M) #-
     pid = tl.program_id(axis=0)
-    pid_per_group = GROUP_SIZE_M * GROUP_SIZE_N # so each group does 
+    # Mblocks_empty_per_last_group_m = GROUP_SIZE_M - n_Mblocks % GROUP_SIZE_M
+    Mblocks_in_last_group_m = n_Mblocks % GROUP_SIZE_M
+    Nblocks_in_last_group_n = n_Nblocks % GROUP_SIZE_N
                                                 # M // group_size_m of M
                                                 # and 1 of N ?
-    group_id = pid // pid_per_group
-    num_groups_N = tl.cdiv(n_Nblocks, GROUP_SIZE_N)
-    num_groups_M = tl.cdiv(n_Mblocks, GROUP_SIZE_M) #-
-    group_id_m = (group_id // num_groups_N)
-    group_id_n = group_id % num_groups_N
-    assert group_id_n < num_groups_N
-    assert group_id_m < num_groups_M #-
+    pid_per_Medge_group = Mblocks_in_last_group_m * GROUP_SIZE_N
+    pid_per_Nedge_group = GROUP_SIZE_M * Nblocks_in_last_group_n
+    pid_per_corner_group = Mblocks_in_last_group_m * Nblocks_in_last_group_n
+
+    pid_per_group = GROUP_SIZE_M * GROUP_SIZE_N # so each group does 
+
+
+    # pid_per_M_direction = (n_Mblocks // GROUP_SIZE_M * pid_per_group + pid_per_Medge_group)
+    core_group_id = pid // pid_per_group
+
+    num_pid_m = tl.cdiv(M, BLOCK_SIZE_M)
+    num_pid_n = tl.cdiv(N, BLOCK_SIZE_N)
+    num_core_groups_M = n_Mblocks // GROUP_SIZE_M
+    num_core_groups_N = n_Nblocks // GROUP_SIZE_N
+    if core_group_id < num_core_groups_M * num_core_groups_N:
+        group_id_m = core_group_id % num_core_groups_M
+        group_id_n = core_group_id // num_core_groups_M
+        group_pid = pid % pid_per_group
+    else:
+
+
+        edge_pid = pid - num_core_groups_M * num_core_groups_N * pid_per_group
+        if pid_per_Medge_group == 0:
+            Medge_group_id = num_core_groups_N
+        else:
+            Medge_group_id = edge_pid // pid_per_Medge_group
+        # tl.device_print("mp", pid_per_Medge_group, pid_per_Nedge_group)
+        if Medge_group_id < num_core_groups_N:
+            Medge_group_pid = edge_pid % pid_per_Medge_group
+            # block is in a group along the M edge
+            # tl.device_print("Medge")
+            group_id_m = num_core_groups_M
+            group_id_n = Medge_group_id
+            # group_pid = edge_group_pid % pid_per_Medge_group WRONG
+            group_pid = (
+                   Medge_group_pid % Mblocks_in_last_group_m 
+                + (Medge_group_pid // Mblocks_in_last_group_m) * GROUP_SIZE_M
+            )
+        else:
+
+            Nedge_pid = edge_pid - pid_per_Medge_group * num_core_groups_N
+            Nedge_group_pid = Nedge_pid % pid_per_Nedge_group
+            Nedge_group_id = Nedge_pid // pid_per_Nedge_group
+            if Nedge_group_id < num_core_groups_M:
+                # along the N edge
+                # tl.device_print("Nedge")
+                group_id_m = Nedge_group_id
+                group_id_n = num_core_groups_N
+                group_pid = Nedge_group_pid % pid_per_Nedge_group # WRONG if there were more than 2dim but ok here
+
+            else:
+                # the "corner case"
+                corner_group_pid = (
+                    edge_pid 
+                    - pid_per_Medge_group * num_core_groups_N 
+                    - pid_per_Nedge_group * num_core_groups_M
+                )
+                group_id_m = num_core_groups_M
+                group_id_n = num_core_groups_N
+                group_pid = (
+                    corner_group_pid % Mblocks_in_last_group_m
+                    + (corner_group_pid // Mblocks_in_last_group_m) * GROUP_SIZE_M
+
+                )
+                # tl.device_print("corner")
+
+
+        
+
+
+    # old
+    # pid_per_group = GROUP_SIZE_M * GROUP_SIZE_N # so each group does 
+    # group_id = pid // pid_per_group
+    # num_groups_M = tl.cdiv(n_Mblocks, GROUP_SIZE_M)
+    # num_groups_N = tl.cdiv(n_Nblocks, GROUP_SIZE_N)
+    # group_id_m = (group_id % num_groups_M)
+    # group_id_n = group_id // num_groups_M
+    # assert group_id_n < num_groups_N
+    # assert group_id_m < num_groups_M #-
+
+    # group_id = group_id // num_groups_M * Mblocks_empty_per_last_group_m # skip empty blocks in M direction
     group_n0 = group_id_n * GROUP_SIZE_N
     group_m0 = group_id_m * GROUP_SIZE_M #-
-    group_size_m = min(M - group_m0, GROUP_SIZE_M)
-    group_size_n = min(N - group_n0, GROUP_SIZE_N) #-
-    group_pid = pid % pid_per_group
+    group_size_m = min(num_pid_m - group_m0, GROUP_SIZE_M)
+    group_size_n = min(num_pid_n - group_n0, GROUP_SIZE_N) #-
+    group_size_m = GROUP_SIZE_M
+    group_size_n = GROUP_SIZE_N
+
+    # group_pid = 
+    
+
+
+
+
 
     id_mb = group_m0 + group_pid % group_size_m
     id_nb = group_n0 + (group_pid // group_size_m) % group_size_n
@@ -181,6 +265,10 @@ def matmul(a, b, outtype=torch.float32, DTYPE_AB = torch.float16):
           triton.cdiv(M, META['GROUP_SIZE_M'] * META['BLOCK_SIZE_M']) * META['GROUP_SIZE_M'] * 
           triton.cdiv(N, META['GROUP_SIZE_N'] * META['BLOCK_SIZE_N']) * META['GROUP_SIZE_N'], 
     )
+    grid = lambda META: (
+          triton.cdiv(M, META['BLOCK_SIZE_M']) * 
+          triton.cdiv(N, META['BLOCK_SIZE_N']), 
+    )
     bt = b.transpose(0, 1)
     tltype = lambda T: tl.float16 if T == torch.float16 else tl.float32
 
@@ -208,6 +296,7 @@ def main():
 
     import test_mm_speeds
     i = 0
+    import random
 
 
     m = 64 * 2 * 4
@@ -219,18 +308,70 @@ def main():
     test_mm_speeds.timetest(m, k, n, matmul, "matmul fp16", dtype=torch.float16)
 
     # input()
-    m = 1 * 64
-    k = 1 * 512
-    n = 1 * 128
-
-    print()
+    m = 1 * 128 + 79 + 1 * 32 + 1024
+    k = 1 * 512 + 79 - 3
+    n = 128 + 64 + 256 - 5
+    print(m, k, n)
+    mb, nb = triton.cdiv(m, 32), triton.cdiv(n, 32)
+    print(mb, nb, mb % 4, nb % 4)
     test_mm_speeds.timetest(m, k, n, lambda *a, **k : matmul(*a, outtype=torch.float32, **k), "matmul fp32", dtype=torch.float32)
     test_mm_speeds.timetest(m, k, n, matmul, "matmul fp16", dtype=torch.float16)
- 
-    onesa = torch.ones((m, k), device='cuda', dtype=torch.float16)
-    onesb = torch.ones((k, n), device='cuda', dtype=torch.float16)
-    test_matmul.test(matmul, onesa, onesb, print_error_radius=3)
+    def onesab(m, k, n):
+        onesa = torch.ones((m, k), device='cuda', dtype=torch.float16)
+        onesb = torch.ones((k, n), device='cuda', dtype=torch.float16)
+        onesa[-1, 0] = -1
+        onesa[0, -1] = -2
+        onesb[-1, 0] = -3
+        onesb[0, -1] = -4
+        onesa[-1, -1] = 0
+        onesb[-1, -1] = 0
+        return onesa, onesb
 
+
+    a,b = onesab(m, k, n)
+    test_matmul.test(matmul, a, b, atol=1)
+    input()
+
+
+
+    for i in range(100):
+        m = random.randint(1, 2048)
+        k = random.randint(1, 2048)
+        n = random.randint(1, 2048)
+        print(i, m, k, n)
+        a,b = onesab(m, k, n)
+        if not test_matmul.test(matmul, a, b, print_error_radius=6, atol=1e-0):
+            print("error", m, k, n)
+
+
+
+
+
+
+    # test_matmul.test(matmul, onesa, onesb, print_error_radius=3)
+    errors = []
+    
+    for i in range(100):
+        m = random.randint(1, 4096)
+        k = random.randint(1, 4096)
+        n = random.randint(1, 4096)
+        a = torch.randn(m, k, device='cuda', dtype=torch.float16)
+        b = torch.randn(k, n, device='cuda', dtype=torch.float16)
+
+        if not test_matmul.test(matmul, a, b, print_error_radius=3, atol=1e-0):
+            errors.append((m, k, n))
+            print("error", m, k, n)
+        print(i, m, k, n)
+        m = random.randint(1, 512)
+        k = random.randint(1, 512)
+        n = random.randint(1, 512)
+        a = torch.randn(m, k, device='cuda', dtype=torch.float16)
+        b = torch.randn(k, n, device='cuda', dtype=torch.float16)
+
+        if not test_matmul.test(matmul, a, b, print_error_radius=3, atol=1e-0):
+            errors.append((m, k, n))
+            print("error", m, k, n)
+        print(i, m, k, n)
 
 
     exit()
