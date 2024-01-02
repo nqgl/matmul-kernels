@@ -151,7 +151,7 @@ def runtests(matmul, n, m, k, atol=1e-4, rtol=1e-4):
     for k, v in d.items():
         print(k)
         a, b = v
-        res = matmul(a,b)
+        res = matmul(a.clone(),b.clone())
         res2 = a @ b
         success = torch.allclose(res, res2, atol=atol, rtol=rtol)
         line = [k, success]

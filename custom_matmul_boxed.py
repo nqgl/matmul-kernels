@@ -40,9 +40,9 @@ def matmul_boxed_kernel(output, a, bt):
     # btid = cuda.blockIdx.x
     # wtid = cuda.threadIdx.x
     # i = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
-    boxdn = 6
-    boxdm = 1024
-    boxdk = 6
+    boxdn = 16
+    boxdm = 16 * 16
+    boxdk = 16
     box_a = cuda.shared.array(shape=(boxdn, boxdm), dtype="float32")
     box_bt = cuda.shared.array(shape=(boxdk, boxdm), dtype="float32")
     Nb = (N + boxdn - 1) // boxdn
@@ -61,18 +61,25 @@ def matmul_boxed_kernel(output, a, bt):
     while i_nk < Nb * Mb * Kb:
 
         # box coordinates
-        nb = i_nk % Nb
-        kb = (i_nk // Nb) % Kb
-        mb = (i_nk // (Nb * Kb)) # future think about n,k,m order to make more cache hit and also 
+        # nb = i_nk % Nb
+        # kb = (i_nk // Nb) % Kb
+        # mb = (i_nk // (Nb * Kb)) 
+                                # future think about n,k,m order to make more cache hit and also 
                                 # manually pred and use the hit
+        
+        mb = i_nk % Mb
+        nb = (i_nk // Mb) % Nb
+        kb = (i_nk // (Mb * Nb))
+        
         # box starting index
         n0 = nb * boxdn
         k0 = kb * boxdk
         m0 = mb * boxdm
 
-        # fill the boxes
+        # fill boxes
         i_b_nmk = btid
-        # cuda.syncthreads()
+        cuda.syncthreads()
+
         while i_b_nmk < max(boxdn * boxdm, boxdk * boxdm):
             mi = i_b_nmk % boxdm
             ni = i_b_nmk // boxdm
@@ -83,8 +90,16 @@ def matmul_boxed_kernel(output, a, bt):
                     box_a[ni, mi] = a[n0 + ni, m0 + mi]
                 if ki < boxdk and ki + k0 < K:
                     box_bt[ki, mi] = bt[k0 + ki, m0 + mi]
+            else:
+                temp = (boxdm - mi - 1) // cuda.blockDim.x * cuda.blockDim.x
+                i_b_nmk = i_b_nmk - temp
             i_b_nmk += cuda.blockDim.x
         cuda.syncthreads()
+
+
+
+
+
         # m = i % wt_s
         # n = (i // wt_s) % N
         # k = i // (wt_s * N)
@@ -108,7 +123,6 @@ def matmul_boxed_kernel(output, a, bt):
                     cuda.atomic.add(output, (n0 + ni, k0 + ki), acc)
             i_b_nk += bw_s # add num warps in block to hit all n, k
         i_nk += b_s
-        cuda.syncthreads()
 
 
 
@@ -132,9 +146,9 @@ def matmul(a, b):
     output = torch.zeros(a.shape[0], b.shape[1], device='cuda')
     bt = b.transpose(0, 1)
     threadsperblock = 32
-    threadsperblock = 32 * 8
-    blockspergrid = (min(max(a.shape[0], bt.shape[0]) * a.shape[1], 6000 // 10 ) + (threadsperblock - 1)) // threadsperblock
-    blockspergrid = (min(max(a.shape[0], bt.shape[0]) * a.shape[1], threadsperblock * 128) + (threadsperblock - 1)) // threadsperblock
+    threadsperblock = 32 * 16
+    blockspergrid = (min(max(a.shape[0], bt.shape[0]) * a.shape[1] * 8, 6000 // 10 ) + (threadsperblock - 1)) // threadsperblock
+    blockspergrid = (min(max(a.shape[0], bt.shape[0]) * a.shape[1] * 8 * 8, threadsperblock * 2048) + (threadsperblock - 1)) // threadsperblock
 
     matmul_boxed_kernel[blockspergrid, threadsperblock](output, a, bt)
     return output
