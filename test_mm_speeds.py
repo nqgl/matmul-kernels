@@ -22,10 +22,11 @@ def colprint(l, spacing = 4):
             for i in range(len(line))]))  # 2. for each column in the line
 
 
-
-def timetest(m, k, n, matmul, name, iterations = 3, check=True, dtype = torch.float32):
+import time
+def timetest(m, k, n, matmul, name, iterations = 3, check=True, dtype = torch.float32, return_times=False):
     al = [torch.rand(m, k, device='cuda', dtype=dtype) for _ in range(iterations)]
     bl = [torch.randn(k, n, device='cuda', dtype=dtype) for _ in range(iterations)]
+
 
     
     
@@ -34,23 +35,31 @@ def timetest(m, k, n, matmul, name, iterations = 3, check=True, dtype = torch.fl
     starts = [torch.cuda.Event(enable_timing=True) for _ in range(iterations)]
     ends = [torch.cuda.Event(enable_timing=True) for _ in range(iterations)]
     for a, b, start, end in zip(al, bl, starts, ends):
-        a_ = a.clone()  
+        # a = torch.rand(m, k, device='cuda', dtype=dtype)
+        # b = torch.randn(k, n, device='cuda', dtype=dtype)
+        time.sleep(0.025)
+        a_ = a.clone()
         b_ = b.clone()
         start.record()
-        cl += [matmul(a_, b_)]
+        c = matmul(a_, b_)
         end.record()
         torch.cuda.synchronize()
         t = start.elapsed_time(end)
+        cl += [c]
         ts.append(t)
         # print(f"{name}: {t}")
     l = [f"{name}: "]
     for a, b, c, t in zip(al, bl, cl, ts):
         l.append(t)
         if check:
+            c = c
             val = torch.matmul(a.clone(),b.clone()).to(c.dtype)
             # print(f"val: {val.dtype}, c: {c.dtype}")
             valid = torch.allclose(c, val, rtol=0, atol=1e-0)
             l.append(valid)
+    if return_times:
+        return ts
+
     print(*l)
     return l
     
@@ -65,31 +74,31 @@ def test():
     import tri_matmul_basic_port
     from cust_tri_matmuls import tri_matmul_2group
 
-    k = 4096
-    m = 4096
-    n = 4096
+    k = 4096 * 1
+    m = 4096 * 1
+    n = 4096 * 1
 
     mmd = {
         "torch": lambda a, b: a @ b,
         "triton tutorial": matmul_tri_ex.matmul,
         "custom tri grouped" : tri_matmul_grouped.matmul,
         "custom tri 2grouped" : tri_matmul_2group.matmul,
-        "custom tri basic": tri_matmul_basic_port.matmul,
+        # "custom tri basic": tri_matmul_basic_port.matmul,
         # "custom boxed": custom_matmul_boxed.matmul,
         # "custom basic": custom_matmul_basic.matmul,
     
     }
     l = []
-    for name, matmul in mmd.items():
-        l += [
-            timetest(n, m, k, matmul, name, dtype=torch.float32)
-        ]
     # colprint(l)
     l2 = []
     print("fp16")
     for name, matmul in mmd.items():
         l2 += [
-            timetest(n, m, k, matmul, name, dtype=torch.float16)
+            timetest(n, m, k, matmul, name, dtype=torch.float16, iterations=10)
+        ]
+    for name, matmul in mmd.items():
+        l += [
+            timetest(n, m, k, matmul, name, dtype=torch.float32, iterations=10)
         ]
 
 
