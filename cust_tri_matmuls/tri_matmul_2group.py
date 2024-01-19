@@ -9,13 +9,46 @@ import test_matmul
 
 
 DEFAULT_CONFIGS = [
-    triton.Config({'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 128 // 2, 'GROUP_SIZE_M' : 4,  'GROUP_SIZE_N' : 2}, num_stages=2,num_warps=8),
-    triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K': 128 // 2, 'GROUP_SIZE_M' : 4,  'GROUP_SIZE_N' : 2}, num_stages=4,num_warps=8),
-    triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K': 128 // 2, 'GROUP_SIZE_M' : 4,  'GROUP_SIZE_N' : 2}, num_stages=2,num_warps=8),
-    triton.Config({'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N': 32, 'BLOCK_SIZE_K': 128 // 2, 'GROUP_SIZE_M' : 4,  'GROUP_SIZE_N' : 2}, num_stages=4,num_warps=8),
-    triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 256 // 2, 'GROUP_SIZE_M' : 4,  'GROUP_SIZE_N' : 2}, num_stages=4,num_warps=8),
-    triton.Config({'BLOCK_SIZE_M': 32, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K': 256 // 2, 'GROUP_SIZE_M' : 4,  'GROUP_SIZE_N' : 2}, num_stages=2,num_warps=8),
-]
+    # triton.Config({'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 128 // 2, 'GROUP_SIZE_M' : 4,  'GROUP_SIZE_N' : 2}, num_stages=2,num_warps=8),
+    # triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K': 128 // 2, 'GROUP_SIZE_M' : 4,  'GROUP_SIZE_N' : 2}, num_stages=4,num_warps=8),
+    # triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K': 128 // 2, 'GROUP_SIZE_M' : 4,  'GROUP_SIZE_N' : 2}, num_stages=2,num_warps=8),
+    # triton.Config({'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N': 32, 'BLOCK_SIZE_K': 128 // 2, 'GROUP_SIZE_M' : 4,  'GROUP_SIZE_N' : 2}, num_stages=4,num_warps=8),
+    # triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 256 // 2, 'GROUP_SIZE_M' : 4,  'GROUP_SIZE_N' : 2}, num_stages=4,num_warps=8),
+    # triton.Config({'BLOCK_SIZE_M': 32, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K': 256 // 2, 'GROUP_SIZE_M' : 4,  'GROUP_SIZE_N' : 2}, num_stages=2,num_warps=8),
+
+        triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 64, 'GROUP_SIZE_M' : 2,  'GROUP_SIZE_N' : 2}, num_stages=4,num_warps=8),
+        
+        
+        triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 64, 'GROUP_SIZE_M' : 4, 'GROUP_SIZE_N' : 2}, num_stages=4,num_warps=4),
+        triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 64, 'GROUP_SIZE_M' : 4, 'GROUP_SIZE_N' : 2}, num_stages=2,num_warps=4),
+        triton.Config({'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M' : 4, 'GROUP_SIZE_N' : 2}, num_stages=2,num_warps=4),
+        triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 256, 'GROUP_SIZE_M' : 4, 'GROUP_SIZE_N' : 2}, num_stages=4,num_warps=4),
+
+        triton.Config({'BLOCK_SIZE_M': 32, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 64, 'GROUP_SIZE_M' : 4, 'GROUP_SIZE_N' : 2}, num_stages=4,num_warps=4),
+        triton.Config({'BLOCK_SIZE_M': 32, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 64, 'GROUP_SIZE_M' : 4, 'GROUP_SIZE_N' : 2}, num_stages=2,num_warps=4),
+        triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 32, 'BLOCK_SIZE_K': 64, 'GROUP_SIZE_M' : 4, 'GROUP_SIZE_N' : 2}, num_stages=2,num_warps=4),
+        triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 32, 'BLOCK_SIZE_K': 64, 'GROUP_SIZE_M' : 4, 'GROUP_SIZE_N' : 2}, num_stages=4,num_warps=4),
+        triton.Config({'BLOCK_SIZE_M': 32, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M' : 4, 'GROUP_SIZE_N' : 2}, num_stages=4,num_warps=4),
+        triton.Config({'BLOCK_SIZE_M': 32, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M' : 4, 'GROUP_SIZE_N' : 2}, num_stages=2,num_warps=4),
+        triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 32, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M' : 4, 'GROUP_SIZE_N' : 2}, num_stages=2,num_warps=4),
+        triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 32, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M' : 4, 'GROUP_SIZE_N' : 2}, num_stages=4,num_warps=4),
+        triton.Config({'BLOCK_SIZE_M': 32, 'BLOCK_SIZE_N': 32, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M' : 4, 'GROUP_SIZE_N' : 2}, num_stages=4,num_warps=4),
+        triton.Config({'BLOCK_SIZE_M': 32, 'BLOCK_SIZE_N': 32, 'BLOCK_SIZE_K': 256, 'GROUP_SIZE_M' : 4, 'GROUP_SIZE_N' : 2}, num_stages=4,num_warps=4),
+
+
+
+        triton.Config({'BLOCK_SIZE_M': 32, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 64, 'GROUP_SIZE_M' : 2, 'GROUP_SIZE_N' : 2}, num_stages=4,num_warps=4),
+        triton.Config({'BLOCK_SIZE_M': 32, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 64, 'GROUP_SIZE_M' : 2, 'GROUP_SIZE_N' : 2}, num_stages=2,num_warps=4),
+        triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 32, 'BLOCK_SIZE_K': 64, 'GROUP_SIZE_M' : 2, 'GROUP_SIZE_N' : 2}, num_stages=2,num_warps=4),
+        triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 32, 'BLOCK_SIZE_K': 64, 'GROUP_SIZE_M' : 2, 'GROUP_SIZE_N' : 2}, num_stages=4,num_warps=4),
+        triton.Config({'BLOCK_SIZE_M': 32, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M' : 2, 'GROUP_SIZE_N' : 2}, num_stages=4,num_warps=4),
+        triton.Config({'BLOCK_SIZE_M': 32, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M' : 2, 'GROUP_SIZE_N' : 2}, num_stages=2,num_warps=4),
+        triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 32, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M' : 2, 'GROUP_SIZE_N' : 2}, num_stages=2,num_warps=4),
+        triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 32, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M' : 2, 'GROUP_SIZE_N' : 2}, num_stages=4,num_warps=4),
+        triton.Config({'BLOCK_SIZE_M': 32, 'BLOCK_SIZE_N': 32, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M' : 2, 'GROUP_SIZE_N' : 2}, num_stages=4,num_warps=4),
+        triton.Config({'BLOCK_SIZE_M': 32, 'BLOCK_SIZE_N': 32, 'BLOCK_SIZE_K': 256, 'GROUP_SIZE_M' : 2, 'GROUP_SIZE_N' : 2}, num_stages=4,num_warps=4),
+
+    ]
 
 
 
@@ -524,7 +557,7 @@ def get_matmul_kernel(configs, keys = ['M', 'N', 'K']):
     return matmul_basic_kernel
 
 
-def matmul(a, b, outtype=torch.float32, DTYPE_AB = torch.float16, matmul_kernel=get_matmul_kernel(DEFAULT_CONFIGS)):
+def matmul(a, b, outtype=torch.float16, DTYPE_AB = torch.float16, matmul_kernel=get_matmul_kernel(DEFAULT_CONFIGS)):
     """
     a   (*B', M, K)
     b: (*B', K, N)
@@ -558,7 +591,7 @@ def matmul(a, b, outtype=torch.float32, DTYPE_AB = torch.float16, matmul_kernel=
         # BLOCK_SIZE_M=128, 
         # BLOCK_SIZE_N=64,
         # BLOCK_SIZE_K=128
-        DTYPE_ACC = tltype(torch.float32),
+        DTYPE_ACC = tltype(torch.float16),
         DTYPE_RET = tltype(outtype),
         DTYPE_AB = None if DTYPE_AB is torch.float16 else tltype(a.dtype),
         TRANS = True

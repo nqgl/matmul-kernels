@@ -23,9 +23,11 @@ def colprint(l, spacing = 4):
 
 
 import time
-def timetest(m, k, n, matmul, name, iterations = 3, check=True, dtype = torch.float32, return_times=False):
-    al = [torch.rand(m, k, device='cuda', dtype=dtype) for _ in range(iterations)]
-    bl = [torch.randn(k, n, device='cuda', dtype=dtype) for _ in range(iterations)]
+def timetest(m, k, n, matmul, name, b = [], bp=None, bq=None, iterations = 3, check=True, dtype = torch.float32, return_times=False):
+    bp = b if bp is None else bp
+    bq = b if bq is None else bq
+    al = [torch.rand(*bp, m, k, device='cuda', dtype=dtype) for _ in range(iterations)]
+    bl = [torch.randn(*bq, k, n, device='cuda', dtype=dtype) for _ in range(iterations)]
 
 
     
@@ -52,9 +54,10 @@ def timetest(m, k, n, matmul, name, iterations = 3, check=True, dtype = torch.fl
     for a, b, c, t in zip(al, bl, cl, ts):
         l.append(t)
         if check:
-            c = c
             val = torch.matmul(a.clone(),b.clone()).to(c.dtype)
             # print(f"val: {val.dtype}, c: {c.dtype}")
+            if val.shape != c.shape:
+                print(val.shape, c.shape)
             valid = torch.allclose(c, val, rtol=0, atol=1e-0)
             l.append(valid)
     if return_times:
@@ -73,16 +76,17 @@ def test():
     import tri_matmul_grouped
     import tri_matmul_basic_port
     from cust_tri_matmuls import tri_matmul_2group
-
-    k = 4096 * 1
-    m = 4096 * 1
+    from cust_tri_matmuls import tri_matmul_2group_thread_inefficient
+    k = 4096 * 2
+    m = 1024
     n = 4096 * 1
 
     mmd = {
-        "torch": lambda a, b: a @ b,
-        "triton tutorial": matmul_tri_ex.matmul,
-        "custom tri grouped" : tri_matmul_grouped.matmul,
+        # "triton tutorial": matmul_tri_ex.matmul,
         "custom tri 2grouped" : tri_matmul_2group.matmul,
+        "custom tri 2g--TI" : tri_matmul_2group_thread_inefficient.matmul,
+        "custom tri grouped" : tri_matmul_grouped.matmul,
+        "torch": lambda a, b: a @ b,
         # "custom tri basic": tri_matmul_basic_port.matmul,
         # "custom boxed": custom_matmul_boxed.matmul,
         # "custom basic": custom_matmul_basic.matmul,
