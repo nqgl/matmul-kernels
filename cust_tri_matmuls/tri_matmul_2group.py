@@ -4,7 +4,7 @@ from torch.autograd import Function
 from nqgl.sae.hsae.spbmbmm import baseline
 import triton
 import triton.language as tl
-import test_matmul
+import nqgl.bmask_bmm.test_matmul as test_matmul
 
 
 

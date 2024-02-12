@@ -14,7 +14,7 @@ B = torch.rand(4096, 4096, device='cuda', dtype=torch.float16)
 transposeF(A)
 
 
-matmulTF = TimedFunc, "transpose"(
+matmulTF = TimedFunc( "transpose"(
     lambda A, B: torch.matmul(A, B),
     "torch matmul"
 )
@@ -35,6 +35,4 @@ TFmatmulG2TI = TimedFunc(matmulG2TI, "custom tri 2g--TI")
 TFmatmulG1(A, B)
 TFmatmulG2(A, B)
 TFmatmulG2TI(A, B)
-
-
 # %%

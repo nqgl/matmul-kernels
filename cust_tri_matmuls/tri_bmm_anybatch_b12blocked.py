@@ -25,58 +25,27 @@ def itermodgrouped(it, mod, groupsize, pid_per_group):
     group = it % pid_per_group
 
     return it % mod, it // mod
-
+from nqgl.bmask_bmm.cust_tri_matmuls import configurate
 from nqgl.bmask_bmm.cust_tri_matmuls.configurate import pows2, defconfigspace
 
 batchmm = defconfigspace(
     BLOCK_SIZE_B = 1    ,
     GROUP_SIZE_B1 = pows2(1, 4)   ,
     GROUP_SIZE_B2 = pows2(1, 4)   ,
+    BLOCK_SIZE_B1 = pows2(1, 4)   ,
+    BLOCK_SIZE_B2 = pows2(1, 4)   ,
     BLOCK_SIZE_M = pows2(32, 128)  ,
     BLOCK_SIZE_N = pows2(32, 128)  ,
-    BLOCK_SIZE_K = pows2(64, 256)  ,
+    BLOCK_SIZE_K = pows2(32, 128)  ,
     GROUP_SIZE_N = pows2(1, 16)    ,
-    GROUP_SIZE_M = pows2(1, 64)    ,
+    GROUP_SIZE_M = pows2(1, 16)    ,
     num_stages=range(2,5),
     num_warps=pows2(4, 4)
 )
 
-from nqgl.bmask_bmm.cust_tri_matmuls import configurate
+
 @triton.autotune(
     configs=configurate.to_configs(batchmm, 10),
-    # [        
-        # triton.Config({'BLOCK_SIZE_B' : 1, 'GROUP_SIZE_B1' : 2, 'GROUP_SIZE_B2' : 2, 'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_N' : 1, 'GROUP_SIZE_M' : 1}, num_stages=2,num_warps=4),
-        # triton.Config({'BLOCK_SIZE_B' : 1, 'GROUP_SIZE_B1' : 2, 'GROUP_SIZE_B2' : 2, 'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_N' : 1, 'GROUP_SIZE_M' : 1}, num_stages=1,num_warps=4),
-        # triton.Config({'BLOCK_SIZE_B' : 1, 'GROUP_SIZE_B1' : 2, 'GROUP_SIZE_B2' : 2, 'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 64, 'GROUP_SIZE_N' : 1, 'GROUP_SIZE_M' : 1}, num_stages=4,num_warps=4),
-        # triton.Config({'BLOCK_SIZE_B' : 1, 'GROUP_SIZE_B1' : 2, 'GROUP_SIZE_B2' : 2, 'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 64, 'GROUP_SIZE_N' : 1, 'GROUP_SIZE_M' : 1}, num_stages=2,num_warps=4),
-        # triton.Config({'BLOCK_SIZE_B' : 1, 'GROUP_SIZE_B1' : 2, 'GROUP_SIZE_B2' : 2, 'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_N' : 1, 'GROUP_SIZE_M' : 1}, num_stages=2,num_warps=4),
-        # triton.Config({'BLOCK_SIZE_B' : 1, 'GROUP_SIZE_B1' : 2, 'GROUP_SIZE_B2' : 2, 'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_N' : 1, 'GROUP_SIZE_M' : 1}, num_stages=4,num_warps=4),
-        # triton.Config({'BLOCK_SIZE_B' : 1, 'GROUP_SIZE_B1' : 2, 'GROUP_SIZE_B2' : 2, 'BLOCK_SIZE_M': 32, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 64, 'GROUP_SIZE_N' : 1, 'GROUP_SIZE_M' : 1}, num_stages=4,num_warps=4),
-        # triton.Config({'BLOCK_SIZE_B' : 1, 'GROUP_SIZE_B1' : 2, 'GROUP_SIZE_B2' : 2, 'BLOCK_SIZE_M': 32, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 64, 'GROUP_SIZE_N' : 1, 'GROUP_SIZE_M' : 1}, num_stages=2,num_warps=4),
-        # triton.Config({'BLOCK_SIZE_B' : 1, 'GROUP_SIZE_B1' : 2, 'GROUP_SIZE_B2' : 2, 'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 32, 'BLOCK_SIZE_K': 64, 'GROUP_SIZE_N' : 1, 'GROUP_SIZE_M' : 1}, num_stages=2,num_warps=4),
-        # triton.Config({'BLOCK_SIZE_B' : 1, 'GROUP_SIZE_B1' : 2, 'GROUP_SIZE_B2' : 2, 'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 32, 'BLOCK_SIZE_K': 64, 'GROUP_SIZE_N' : 1, 'GROUP_SIZE_M' : 1}, num_stages=4,num_warps=4),
-        # triton.Config({'BLOCK_SIZE_B' : 1, 'GROUP_SIZE_B1' : 2, 'GROUP_SIZE_B2' : 2, 'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_N' : 1, 'GROUP_SIZE_M' : 1}, num_stages=5,num_warps=4),
-        # triton.Config({'BLOCK_SIZE_B' : 1, 'GROUP_SIZE_B1' : 2, 'GROUP_SIZE_B2' : 2, 'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_N' : 1, 'GROUP_SIZE_M' : 1}, num_stages=3,num_warps=4),
-        # triton.Config({'BLOCK_SIZE_B' : 1, 'GROUP_SIZE_B1' : 2, 'GROUP_SIZE_B2' : 2, 'BLOCK_SIZE_M': 32, 'BLOCK_SIZE_N': 32, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_N' : 1, 'GROUP_SIZE_M' : 1}, num_stages=2,num_warps=4),
-        # triton.Config({'BLOCK_SIZE_B' : 1, 'GROUP_SIZE_B1' : 2, 'GROUP_SIZE_B2' : 2, 'BLOCK_SIZE_M': 16, 'BLOCK_SIZE_N': 32, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_N' : 1, 'GROUP_SIZE_M' : 1}, num_stages=4,num_warps=4),
-        # triton.Config({'BLOCK_SIZE_B' : 1, 'GROUP_SIZE_B1' : 2, 'GROUP_SIZE_B2' : 2, 'BLOCK_SIZE_M': 16, 'BLOCK_SIZE_N': 16, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_N' : 1, 'GROUP_SIZE_M' : 1}, num_stages=5,num_warps=4),
-        # triton.Config({'BLOCK_SIZE_B' : 1, 'GROUP_SIZE_B1' : 2, 'GROUP_SIZE_B2' : 2, 'BLOCK_SIZE_M': 32, 'BLOCK_SIZE_N': 16, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_N' : 1, 'GROUP_SIZE_M' : 1}, num_stages=3,num_warps=4),
-
-        # triton.Config({'BLOCK_SIZE_B' : 4, 'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M' : 8}, num_stages=2,num_warps=4),
-        # triton.Config({'BLOCK_SIZE_B' : 4, 'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M' : 8}, num_stages=1,num_warps=4),
-        # triton.Config({'BLOCK_SIZE_B' : 4, 'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 64, 'GROUP_SIZE_M' : 8}, num_stages=4,num_warps=4),
-        # triton.Config({'BLOCK_SIZE_B' : 4, 'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 64, 'GROUP_SIZE_M' : 8}, num_stages=2,num_warps=4),
-        # triton.Config({'BLOCK_SIZE_B' : 4, 'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M' : 8}, num_stages=2,num_warps=4),
-        # triton.Config({'BLOCK_SIZE_B' : 4, 'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M' : 8}, num_stages=4,num_warps=4),
-        # triton.Config({'BLOCK_SIZE_B' : 4, 'BLOCK_SIZE_M': 32, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 64, 'GROUP_SIZE_M' : 8}, num_stages=4,num_warps=4),
-        # triton.Config({'BLOCK_SIZE_B' : 4, 'BLOCK_SIZE_M': 32, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 64, 'GROUP_SIZE_M' : 8}, num_stages=2,num_warps=4),
-        # triton.Config({'BLOCK_SIZE_B' : 4, 'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 32, 'BLOCK_SIZE_K': 64, 'GROUP_SIZE_M' : 8}, num_stages=2,num_warps=4),
-        # triton.Config({'BLOCK_SIZE_B' : 4, 'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 32, 'BLOCK_SIZE_K': 64, 'GROUP_SIZE_M' : 8}, num_stages=4,num_warps=4),
-        # triton.Config({'BLOCK_SIZE_B' : 4, 'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M' : 8}, num_stages=5,num_warps=4),
-        # triton.Config({'BLOCK_SIZE_B' : 4, 'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M' : 8}, num_stages=3,num_warps=4),
-    
-
-    # ],
     key=['M', 'N', 'K'],
 )
 @triton.jit
@@ -92,12 +61,14 @@ def batchmatmul_basic_kernel(
         stride_pb0, stride_pb1, stride_pb2, stride_pm, stride_pk, 
         stride_qb0, stride_qb1, stride_qb2, stride_qk, stride_qn,
         stride_outb0, stride_outb1, stride_outb2, stride_outm, stride_outn,
-        BLOCK_SIZE_B :tl.constexpr,
-        BLOCK_SIZE_M :tl.constexpr,
-        BLOCK_SIZE_N :tl.constexpr,
-        BLOCK_SIZE_K :tl.constexpr,
-        GROUP_SIZE_M :tl.constexpr,
-        GROUP_SIZE_N :tl.constexpr,
+        BLOCK_SIZE_B  :tl.constexpr,
+        BLOCK_SIZE_B1 :tl.constexpr,
+        BLOCK_SIZE_B2 :tl.constexpr,
+        BLOCK_SIZE_M  :tl.constexpr,
+        BLOCK_SIZE_N  :tl.constexpr,
+        BLOCK_SIZE_K  :tl.constexpr,
+        GROUP_SIZE_M  :tl.constexpr,
+        GROUP_SIZE_N  :tl.constexpr,
         GROUP_SIZE_B1 :tl.constexpr,
         GROUP_SIZE_B2 :tl.constexpr,
         DTYPE_RET :tl.constexpr,
@@ -128,13 +99,15 @@ def batchmatmul_basic_kernel(
     # b2, re = itermod(re, n_B2blocks)
     # b1, re = itermod(re, n_B1blocks)
 
+
+
     b2, re = itermod(re, GROUP_SIZE_B2)
-    b1, re = itermod(re, GROUP_SIZE_B1)
     i, re = itermod(re, GROUP_SIZE_M)
+    b1, re = itermod(re, GROUP_SIZE_B1)
     j, re = itermod(re, GROUP_SIZE_N) # future can group by changing
     b2g, re = itermod(re, tl.cdiv(n_B2blocks, GROUP_SIZE_B2))
-    b1g, re = itermod(re, tl.cdiv(n_B1blocks, GROUP_SIZE_B1))
     ig, re = itermod(re, tl.cdiv(n_Mblocks, GROUP_SIZE_M))
+    b1g, re = itermod(re, tl.cdiv(n_B1blocks, GROUP_SIZE_B1))
     jg, re = itermod(re, tl.cdiv(n_Nblocks, GROUP_SIZE_N))
     b0, re = itermod(re, n_B0blocks)
 
@@ -155,75 +128,78 @@ def batchmatmul_basic_kernel(
     bu2 = b2 * BLOCK_SIZE_B
     
     # for bi in range(BLOCK_SIZE_B):
-    if (bu0 < B0) and (bu1 < B1 and bu2 < B2):
-        acc = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=DTYPE_ACC)
-        for ki in range(n_Kblocks):
-            p_ptrs = (
-                p_ptr 
-                + stride_pb0 * bu0
-                + stride_pb1 * bu1
-                # + stride_pb2 * bu2
-                + stride_pm * mus[:, None] 
-                + stride_pk * kus[None, :]
-            )
-            q_ptrs = (
-                q_ptr 
-                + stride_qb0 * bu0
-                # + stride_qb1 * bu1
-                + stride_qb2 * bu2
-                + stride_qn * nus[None, :]
-                + stride_qk * kus[:, None] 
-            )
-            pi = tl.load(
-                p_ptrs, 
-                mask=(  
-                    (mus[:, None] < M) 
-                    & (kus[None, :] < K)
-                    ), 
-                other=0.0
-            )
-            qi = tl.load(
-                q_ptrs, 
-                mask=(  
-                    (nus[None, :] < N)
-                    & (kus[:, None] < K) 
-                    ), 
-                other=0.0
-            )
-            # bi = tl.trans(bi)
+    for _ in range(BLOCK_SIZE_B1):
+        for _ in range(BLOCK_SIZE_B2):
+            if (bu0 < B0) and (bu1 < B1 and bu2 < B2):
+                acc = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=DTYPE_ACC)
+                for ki in range(n_Kblocks):
+                    p_ptrs = (
+                        p_ptr 
+                        + stride_pb0 * bu0
+                        + stride_pb1 * bu1
+                        # + stride_pb2 * bu2
+                        + stride_pm * mus[:, None] 
+                        + stride_pk * kus[None, :]
+                    )
+                    q_ptrs = (
+                        q_ptr 
+                        + stride_qb0 * bu0
+                        # + stride_qb1 * bu1
+                        + stride_qb2 * bu2
+                        + stride_qn * nus[None, :]
+                        + stride_qk * kus[:, None] 
+                    )
+                    pi = tl.load(
+                        p_ptrs, 
+                        mask=(  
+                            (mus[:, None] < M) 
+                            & (kus[None, :] < K)
+                            ), 
+                        other=0.0
+                    )
+                    qi = tl.load(
+                        q_ptrs, 
+                        mask=(  
+                            (nus[None, :] < N)
+                            & (kus[:, None] < K) 
+                            ), 
+                        other=0.0
+                    )
+                    # bi = tl.trans(bi)
 
-            if DTYPE_AB is not None:
-                pi = pi.to(DTYPE_AB)
-                qi = qi.to(DTYPE_AB)
-            acc += tl.dot(pi, qi).to(DTYPE_ACC)
-            kus += BLOCK_SIZE_K
-        out_ptrs = (
-            out_ptr 
-            + stride_outb0 * bu0
-            + stride_outb1 * bu1
-            + stride_outb2 * bu2
-            + stride_outm * mus[:, None]
-            + stride_outn * nus[None, :]
-        )
-        if DTYPE_RET is not None:
-            tl.store(
-                out_ptrs, 
-                acc.to(DTYPE_RET), 
-                mask=(
-                    (mus[:, None] < M)
-                    & (nus[None, :] < N)
+                    if DTYPE_AB is not None:
+                        pi = pi.to(DTYPE_AB)
+                        qi = qi.to(DTYPE_AB)
+                    acc += tl.dot(pi, qi).to(DTYPE_ACC)
+                    kus += BLOCK_SIZE_K
+                out_ptrs = (
+                    out_ptr 
+                    + stride_outb0 * bu0
+                    + stride_outb1 * bu1
+                    + stride_outb2 * bu2
+                    + stride_outm * mus[:, None]
+                    + stride_outn * nus[None, :]
                 )
-            )
-        else:
-            tl.store(
-                out_ptrs, 
-                acc, 
-                mask=(
-                    (mus[:, None] < M)
-                    & (nus[None, :] < N)
-                )
-            )
-        bu0 += 1
+                if DTYPE_RET is not None:
+                    tl.store(
+                        out_ptrs, 
+                        acc.to(DTYPE_RET), 
+                        mask=(
+                            (mus[:, None] < M)
+                            & (nus[None, :] < N)
+                        )
+                    )
+                else:
+                    tl.store(
+                        out_ptrs, 
+                        acc, 
+                        mask=(
+                            (mus[:, None] < M)
+                            & (nus[None, :] < N)
+                        )
+                    )
+            bu2 += 1
+        bu1 += 1
 
 
 

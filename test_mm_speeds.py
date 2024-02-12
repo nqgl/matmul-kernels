@@ -60,12 +60,63 @@ def timetest(m, k, n, matmul, name, b = [], bp=None, bq=None, iterations = 3, ch
                 print(val.shape, c.shape)
             valid = torch.allclose(c, val, rtol=0, atol=1e-0)
             l.append(valid)
+    print(*l)
     if return_times:
         return ts
-
-    print(*l)
+    
     return l
     
+
+import torch.nn.functional as F
+def spbm_timetest(m, k, n, mask_matmul, name, sparsity = 0.5, b = [], bp=None, bq=None, iterations = 3, check=True, dtype = torch.float32, return_times=False):
+    bp = b if bp is None else bp
+    bq = b if bq is None else bq
+    bm = [bp[0], bp[1], bq[2]]
+    al = [torch.rand(*bp, m, k, device='cuda', dtype=dtype) for _ in range(iterations)]
+    bl = [torch.randn(*bq, k, n, device='cuda', dtype=dtype) for _ in range(iterations)]
+    mask_list = [
+        F.dropout(
+            torch.ones(*bm, device='cuda', dtype=dtype),
+            p=sparsity,
+        ) * (1 - sparsity)
+        for _ in range(iterations)
+    ]
+    
+    
+    cl = []
+    ts = []
+    starts = [torch.cuda.Event(enable_timing=True) for _ in range(iterations)]
+    ends = [torch.cuda.Event(enable_timing=True) for _ in range(iterations)]
+    for a, b, start, end, mask in zip(al, bl, starts, ends, mask_list):
+        # a = torch.rand(m, k, device='cuda', dtype=dtype)
+        # b = torch.randn(k, n, device='cuda', dtype=dtype)
+        time.sleep(0.025)
+        a_ = a
+        b_ = b
+        start.record()
+        c = mask_matmul(a_, b_, mask)
+        end.record()
+        torch.cuda.synchronize()
+        t = start.elapsed_time(end)
+        cl += [c]
+        ts.append(t)
+        # print(f"{name}: {t}")
+    l = [f"{name}: "]
+    for a, b, c, t, mask in zip(al, bl, cl, ts, mask_list):
+        l.append(t)
+        if check:
+            val = torch.matmul(a.clone(),b.clone()).to(c.dtype) * mask.unsqueeze(-1).unsqueeze(-1)
+            # print(f"val: {val.dtype}, c: {c.dtype}")
+            if val.shape != c.shape:
+                print(val.shape, c.shape)
+            valid = torch.allclose(c, val, rtol=0, atol=1e-0)
+            l.append(valid)
+    print(*l)
+    if return_times:
+        return ts
+    
+    return l
+
 
 
 
